@@ -1,5 +1,5 @@
--- Autorzy: Magdalena Wojciak, 224461
---			Kamil Bloch
+-- Autorzy: 	Magdalena Wojciak, 224461
+--		Kamil Bloch
 
 
 USE rental_office
@@ -7,7 +7,7 @@ USE rental_office
 ------------------------------------------------------------ZAPYTANIA------------------------------------------------------------
 
 
--- 1. Wyswietlenie tych aoi api, u ktorych laczny miesięczny czynsz za obecnie wynajete apartments jest powyzej sredniej
+-- 1. Wyswietlenie tych wlascicieli lokali, u ktorych laczny miesięczny czynsz za obecnie wynajete lokale jest powyzej sredniej
 
 BEGIN
 
@@ -30,9 +30,9 @@ BEGIN
 END
 
 
--- 2. Wyswietlenie sredniej ceny wynajmu za jeden metr kwadratowy apu (z zaaokragleniem do dwoch miejsc po przecinku), 
---    sredniego apartment_sizeu apu (przyjmujemy zaokraglenie w dol) w zaleznosci od provinces.
---    Posegregowanie resultow malejaco wzgledem sredniej ceny wynajmu za 1 metr kwadratowy 
+-- 2. Wyswietlenie sredniej ceny wynajmu za jeden metr kwadratowy lokalu (z zaaokragleniem do dwoch miejsc po przecinku), 
+--    sredniego metrazu lokalu (przyjmujemy zaokraglenie w dol) w zaleznosci od wojewodztwa.
+--    Posegregowanie wynikow malejaco wzgledem sredniej ceny wynajmu za 1 metr kwadratowy 
 
 SELECT  p.name,
 		ROUND(AVG(ra.rental_price/ap.apartment_size), 2) AS [avg rental price for square meter],
@@ -45,17 +45,17 @@ GROUP BY (p.name)
 ORDER BY [avg rental price for square meter] DESC
 
 
--- 3. Wyswietlenie identyfikatorow aoi oraz liczby api przez nich posiadanych, ktorzy posiadaja wiecej niz 2 apartments.
+-- 3. Wyswietlenie identyfikatorow wlascicieli mieszkan oraz liczby lokali przez nich posiadanych, ktorzy posiadaja wiecej niz 2 lokale.
 
 SELECT  apartment_owners.apartment_owners_ID,
-		COUNT(apartments.apartment_ID) AS [number of apartments]
+	COUNT(apartments.apartment_ID) AS [number of apartments]
 FROM (apartments
 INNER JOIN apartment_owners ON apartment_owners.apartment_owners_ID = apartments.apartment_owners_ID)
 GROUP BY apartment_owners.apartment_owners_ID
 HAVING COUNT(apartments.apartment_ID) > 2;
 
 
--- 4. Wyświetlenie malejąco częstotliwości podpisywania umów w zależności od miesiąca w percentach
+-- 4. Wyświetlenie malejąco częstotliwości podpisywania umów w zależności od miesiąca w procentach.
 
 BEGIN
 
@@ -86,56 +86,57 @@ END AS Dodatek_stazowy
 FROM employees
 
 
--- 6. Wyswietelnie identyfikatorow osob wynajmujacych oraz zajmowanych przez nich obecnie api wraz z data konca podpisanej umowy oraz informacji
+-- 6. Wyswietelnie identyfikatorow osob wynajmujacych oraz zajmowanych przez nich obecnie lokali wraz z data konca podpisanej umowy oraz informacji
 --    ile czasu (wiecej niz pol roku, pol roku, mniej niz pol roku) pozostalo do konca umowy
 
 SELECT	p.people_renting_apartments_ID,
-		a.apartment_ID, 
-		ra.agreement_end_date,
-		CASE
-			WHEN DATEDIFF(MONTH, GETDATE() ,ra.agreement_end_date) > 6 THEN 'More than six months remain to the end of the rental agreement'
-			WHEN DATEDIFF(MONTH, GETDATE() ,ra.agreement_end_date) = 6 THEN 'Six months remain to the end of the rental agreement'
-			ELSE 'Less than six months remain to the end of the rental agreement'
-		END AS Information
+	a.apartment_ID, 
+	ra.agreement_end_date,
+	CASE
+		WHEN DATEDIFF(MONTH, GETDATE() ,ra.agreement_end_date) > 6 THEN 'More than six months remain to the end of the rental agreement'
+		WHEN DATEDIFF(MONTH, GETDATE() ,ra.agreement_end_date) = 6 THEN 'Six months remain to the end of the rental agreement'
+		ELSE 'Less than six months remain to the end of the rental agreement'
+	END AS Information
 FROM rental_agreement ra, people_renting_apartments p, apartments a
 WHERE ra.apartment_ID = a.apartment_ID
 AND ra.people_renting_apartments_ID = p.people_renting_apartments_ID
 AND ra.agreement_end_date > GETDATE()
 
 
--- 7. Wyswietlenie listy api w danym miescie oraz informacji, ktory oddzial biura zajmuje sie danym apartmentsm
+-- 7. Wyswietlenie listy lokali w danym miescie oraz informacji, ktory oddzial biura zajmuje sie danym lokalem
 
 SELECT	l.city,
-		a.apartment_ID, 
-		a.department_ID
+	a.apartment_ID, 
+	a.department_ID
 FROM apartments a, locations l
 WHERE a.location_ID=l.location_ID 
-AND a.apartment_ID NOT IN (SELECT ra.apartment_ID 
-						FROM rental_agreement ra
-						WHERE ra.agreement_end_date > GETDATE())
+AND a.apartment_ID NOT IN (	SELECT ra.apartment_ID 
+				FROM rental_agreement ra
+				WHERE ra.agreement_end_date > GETDATE())
 						
 
--- 8. Porownanie liczby wynajetych api w 2019 roku i w dobie covidowej - rok 2020
+-- 8. Porownanie liczby wynajetych lokali w 2019 roku i w dobie covidowej - rok 2020
 
 SELECT y19.*, y20.year_2020 
 FROM
 	(SELECT MONTH(agreement_start_date) AS [month_number], 
-			DATENAME(month, agreement_start_date) AS [month_name],
-			COUNT(rental_agreement_ID) AS [year 2019] 
+		DATENAME(month, agreement_start_date) AS [month_name],
+		COUNT(rental_agreement_ID) AS [year 2019] 
 		FROM rental_agreement 
 		WHERE YEAR(agreement_start_date) = 2019 
 		GROUP BY MONTH(agreement_start_date), DATENAME(month, agreement_start_date)) AS y19,
 
 	(SELECT month(agreement_start_date) AS [month_number], 
-			DATENAME(month, agreement_start_date) AS [name_miesiaca],
-			COUNT(rental_agreement_ID) AS [year_2020] 
+		DATENAME(month, agreement_start_date) AS [name_miesiaca],
+		COUNT(rental_agreement_ID) AS [year_2020] 
 		FROM rental_agreement 
 		WHERE YEAR(agreement_start_date) = 2020 
 		GROUP BY MONTH(agreement_start_date), DATENAME(month, agreement_start_date)) AS y20
 WHERE y19.[month_number]=y20.[month_number]
 
 
--- 9. Wyswietlenie tych api (ID) wraz z addressem oraz numerem oddzialu, ktore dla zadeklarowanego provinces, nigdy nie byly wynajete
+-- 9. Wyswietlenie tych lokali (ID) wraz z adresem oraz numerem oddzialu, ktore dla zadeklarowanego wojewodztwa, nigdy nie byly wynajete
+
 DECLARE @name_of_the_provinces varchar(20)
 SET @name_of_the_provinces = 'PODLASKIE'
 
@@ -148,8 +149,8 @@ BEGIN
 	)
 
 	SELECT	a.apartment_ID, 
-			CONCAT(l1.street, a.apartment_number, ', ', l1.postal_code, ' ', l1.city) AS [address],
-			d.department_ID
+		CONCAT(l1.street, a.apartment_number, ', ', l1.postal_code, ' ', l1.city) AS [address],
+		d.department_ID
 	FROM apartments a, locations l1, provinces p, departments d, locations l2
 	WHERE a.location_ID = l1.location_ID
 	AND a.department_ID = d.department_ID
@@ -160,15 +161,15 @@ BEGIN
 
 END
 
--- 10. Wyswietlenie poprzez kursor pracownikow (ich nazwisk i identyfikatorow) pracujacych w podanym podztwie.
---     Wyswietlenie komunikatu odnosnie sumy pracownikow w podanym podztwie.
+-- 10. Wyswietlenie poprzez kursor pracownikow (ich nazwisk i identyfikatorow) pracujacych w podanym wojewodztwie.
+--     Wyswietlenie komunikatu odnosnie sumy pracownikow w podanym wojewodztwie.
 
 BEGIN	
 	DECLARE @employee_last_name varchar(20),
-			@empl_id int,
-			@number int,
-			@prov_id char(2),
-			@prov_name varchar(20)
+		@empl_id int,
+		@number int,
+		@prov_id char(2),
+		@prov_name varchar(20)
 
 	SET @number = 0		
 	SET @prov_id = 'EL'
@@ -176,10 +177,10 @@ BEGIN
 	SET @prov_name = (SELECT p.name FROM provinces p WHERE p.provinces_ID = @prov_id)
 
 	DECLARE c CURSOR FOR (	SELECT e.last_name, e.employee_ID
-							FROM employees e, departments d, locations l
-							WHERE d.department_ID = e.department_ID
-							AND d.location_ID = l.location_ID
-							AND l.provinces_ID = @prov_id)
+				FROM employees e, departments d, locations l
+				WHERE d.department_ID = e.department_ID
+				AND d.location_ID = l.location_ID
+				AND l.provinces_ID = @prov_id)
 	OPEN c
 	FETCH NEXT FROM c INTO @employee_last_name, @empl_id
 	WHILE @@FETCH_STATUS = 0 
@@ -201,22 +202,22 @@ BEGIN
 END
 
 
--- 11. Wyswietlenie rankingu api w poszczegolnych miastach biorac pod uwage ich apartment_size.
+-- 11. Wyswietlenie rankingu lokali w poszczegolnych miastach biorac pod uwage ich metraz.
 
 SELECT	a.apartment_ID,
-		a.apartment_size,
-		l.city,
-		DENSE_RANK() OVER (PARTITION BY l.city ORDER BY a.apartment_size DESC) AS Ranking
+	a.apartment_size,
+	l.city,
+	DENSE_RANK() OVER (PARTITION BY l.city ORDER BY a.apartment_size DESC) AS Ranking
 FROM apartments a 
 JOIN locations l ON a.location_ID = l.location_ID
 
 
--- 12. Wyswietlenie na jakie apartments (rodzaj budynku) naczesciej decyduja sie osoby wynajmujace w danym podztwie
---     Posegregowane od najwiekszej do najmniejszej ilosci w danym podztwie
+-- 12. Wyswietlenie na jakie rodzaje lokali (type_of_building) naczesciej decyduja sie osoby wynajmujace w danym wojewodztwie
+--     Posegregowane od najwiekszej do najmniejszej ilosci w danym wojewodztwie
 
 SELECT	l.provinces_ID,
-		a.type_of_building,
-		COUNT(a.type_of_building) AS [How many]
+	a.type_of_building,
+	COUNT(a.type_of_building) AS [How many]
 FROM rental_agreement u
 JOIN apartments a ON u.apartment_ID = a.apartment_ID
 JOIN locations l ON l.location_ID = a.apartment_ID
@@ -224,14 +225,14 @@ GROUP BY a.type_of_building, l.provinces_ID
 ORDER BY l.provinces_ID, [How many] DESC
 
 
--- 13. Wyswietlenie pracowników obchodzących urodziny, bądź rocznicę zatrudnienia w bieżącym miesiącu w poszczególnych miastach.
+-- 13. Wyswietlenie pracownikow obchodzacych urodziny, badz rocznice zatrudnienia w biezacym miesiacu w poszczegolnych miastach.
 
 SELECT 	l.city,
-		CONCAT(e.first_name, ' ', e.last_name) as Employee,
-		CASE
-			WHEN MONTH(GETDATE()) = MONTH(e.date_of_birth) THEN 'Birthday'
-			WHEN MONTH(GETDATE()) = MONTH(e.hire_date) THEN 'Anniversary of employment'
-		END AS Occasion
+	CONCAT(e.first_name, ' ', e.last_name) as Employee,
+	CASE
+		WHEN MONTH(GETDATE()) = MONTH(e.date_of_birth) THEN 'Birthday'
+		WHEN MONTH(GETDATE()) = MONTH(e.hire_date) THEN 'Anniversary of employment'
+	END AS Occasion
 FROM locations l, departments d, employees e
 WHERE l.location_ID = d.location_ID
 AND d.department_ID = e.department_ID
@@ -239,11 +240,11 @@ AND (MONTH(GETDATE()) = MONTH(e.date_of_birth)
 OR MONTH(GETDATE()) = MONTH(e.hire_date))
 
 
--- 14. Wyswietlenie identyfikatorow pracowników zwolnionych i zatrudnionych w tym samym miesiącu tego samego roku i miasta w którym mialo to miejsce.
+-- 14. Wyswietlenie identyfikatorow pracownikow zwolnionych i zatrudnionych w tym samym miesiacu tego samego roku i miasta w którym mialo to miejsce.
 
 SELECT DISTINCT l.city,
-				e.employee_ID as [dismissed employees], 
-				arch.employee_ID as [hired employees]
+		e.employee_ID as [dismissed employees], 
+		arch.employee_ID as [hired employees]
 FROM employees e, employee_archive arch, departments d, locations l
 WHERE e.department_ID = arch.department_ID
 AND e.department_ID = d.department_ID
@@ -256,22 +257,22 @@ AND YEAR(arch.end_date) = YEAR(e.hire_date)
 
 BEGIN	
 	DECLARE @owners varchar(20),
-			@phone_num varchar(14),
-			@address varchar(50),
-			@type varchar(20),
-			@prov_id char(2)
+		@phone_num varchar(14),
+		@address varchar(50),
+		@type varchar(20),
+		@prov_id char(2)
 
 	SET @type = 'kamienica'
 	SET @prov_id = 'LL'
 
 	DECLARE c CURSOR FOR (	SELECT DISTINCT CONCAT(ao.first_name, ' ', ao.last_name) as Owner, 
-											ao.phone_number, 
-											CONCAT(l.street, ' ', a.apartment_number, ', ', l.postal_code, ' ', l.city) as Address
-							FROM apartment_owners ao, locations l, apartments a
-							WHERE a.apartment_owners_ID = ao.apartment_owners_ID
-							AND a.location_ID = l.location_ID
-							AND l.provinces_ID = @prov_id
-							AND a.type_of_building = @type)
+						ao.phone_number, 
+						CONCAT(l.street, ' ', a.apartment_number, ', ', l.postal_code, ' ', l.city) as Address
+				FROM apartment_owners ao, locations l, apartments a
+				WHERE a.apartment_owners_ID = ao.apartment_owners_ID
+				AND a.location_ID = l.location_ID
+				AND l.provinces_ID = @prov_id
+				AND a.type_of_building = @type)
 	OPEN c
 	FETCH NEXT FROM c INTO @owners, @phone_num, @address
 	WHILE @@FETCH_STATUS = 0 
@@ -287,13 +288,13 @@ END
 
 -------------------------------------------------- FUNKCJE --------------------------------------------------
 
--- 1. Funkcja, ktora na podstawie apartment_ID sprawdza czy dany ap jest dostepny do wynajecia.  
---    Jesli ap jest dostepny zwraca 1, jesli nie zwraca 0
+-- 1. Funkcja, ktora na podstawie apartment_ID sprawdza czy dany lokal jest dostepny do wynajecia.  
+--    Jesli lokal jest dostepny zwraca 1, jesli nie zwraca 0
 
 
-IF EXISTS (SELECT * FROM sys.objects 
-					WHERE object_id = OBJECT_ID(N'dbo.check_availability') 
-					AND type IN ( N'FN', N'IF', N'TF', N'FS', N'FT' ))
+IF EXISTS (	SELECT * FROM sys.objects 
+		WHERE object_id = OBJECT_ID(N'dbo.check_availability') 
+		AND type IN ( N'FN', N'IF', N'TF', N'FS', N'FT' ))
 DROP FUNCTION dbo.check_availability
 GO 
 
@@ -303,8 +304,8 @@ BEGIN
 	DECLARE @is_available int
 
 	IF (@apart_id NOT IN (	SELECT ra.apartment_ID 
-								FROM rental_agreement ra
-								WHERE ra.agreement_end_date > GETDATE()))
+				FROM rental_agreement ra
+				WHERE ra.agreement_end_date > GETDATE()))
 		BEGIN
 			SET @is_available = 1
 		END
@@ -321,15 +322,14 @@ GO
 
 --Sprawdzenie dostepnosci wszystkich mieszkan
 SELECT DISTINCT apartment_ID,
-				dbo.check_availability(apartment_ID) AS [Availability]
+		dbo.check_availability(apartment_ID) AS [Availability]
 FROM apartments
 
 
--- 2. Funkcja, ktora na podstawie iden_card sprawdza, czy dokument jest prawdziwy (czy sumy kontrolne się zgadzają)
+-- 2. Funkcja, ktora na podstawie numeru dowodu sprawdza, czy dokument jest prawdziwy (czy sumy kontrolne się zgadzają)
 
 
-IF EXISTS (SELECT * FROM sys.objects 
-					WHERE object_id = OBJECT_ID(N'dbo.check_correctness_of_identity_card') 
+IF EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'dbo.check_correctness_of_identity_card') 
 					AND type IN ( N'FN', N'IF', N'TF', N'FS', N'FT' ))
 
 DROP FUNCTION dbo.check_correctness_of_identity_card
@@ -368,45 +368,52 @@ SELECT people_renting_apartments_ID, identity_card, dbo.check_correctness_of_ide
 
 -------------------------------------------------- PROCEDURY --------------------------------------------------
 
--- 1. Procedura, ktora podniesie czynsz apu o podany percent. Jesli ap posiada powierzchnie mniejsza niz 45 m nie pozwol na podwyzke
---    Dzialanie tylko dla api ktore sa obecnie wynajete. WYKORZYSTANIE STWORZONEJ FUNKCJI check_availability - jesli mieszkanie 
+-- 1. Procedura, ktora podniesie czynsz lokalu o podany procent. Jesli lokal posiada powierzchnie mniejsza niz 45 m nie pozwol na podwyzke
+--    Dzialanie tylko dla lokali ktore sa obecnie wynajete. WYKORZYSTANIE STWORZONEJ FUNKCJI check_availability - jesli mieszkanie 
 --    jest niedostepne (0) tzn ze jest wynajete. Na koniec wyswietlenie stosownego komunikatu.
---    Przyjmujemy domyslne wartosci: percent podwyzki = 5%
+--    Przyjmujemy domyslne wartosci: procent podwyzki = 5%
 
 IF EXISTS(SELECT 1 FROM sys.objects WHERE name = 'raise_the_rental_price')
 DROP PROCEDURE raise_the_rental_price
 GO
 
 CREATE PROCEDURE raise_the_rental_price (@aprat_num int,
-								 @percent int =  5)					 
+					 @percent int =  5)					 
 AS
 	BEGIN
 		DECLARE @rise float,
-				@apartment_area int,
-				@previous_value money,
-				@new_value money
+			@apartment_area int,
+			@previous_value money,
+			@new_value money
 		
 		SET @rise = 0.01 * @percent
 
-		SET @apartment_area = (SELECT a.apartment_size
-							 FROM apartments a
-							 WHERE a.apartment_ID = @aprat_num)
+		SET @apartment_area = (	SELECT a.apartment_size
+					FROM apartments a
+					WHERE a.apartment_ID = @aprat_num)
 
 			IF (dbo.check_availability(@aprat_num) = 0)
 			BEGIN
 				IF (@apartment_area >= 45)
 					BEGIN
 
-						SET @previous_value = (SELECT ra.rental_price FROM rental_agreement ra WHERE ra.apartment_ID = @aprat_num AND agreement_end_date > GETDATE())
+						SET @previous_value = (	SELECT ra.rental_price 
+									FROM rental_agreement ra 
+									WHERE ra.apartment_ID = @aprat_num 
+									AND agreement_end_date > GETDATE())
 
 						UPDATE rental_office.dbo.rental_agreement
 						SET rental_price = rental_price + @rise * rental_price
 						WHERE apartment_ID = @aprat_num
 						AND agreement_end_date > GETDATE()
 
-						SET @new_value = (SELECT ra.rental_price FROM rental_agreement ra WHERE ra.apartment_ID = @aprat_num AND agreement_end_date > GETDATE())
+						SET @new_value = (	SELECT ra.rental_price 
+									FROM rental_agreement ra 
+									WHERE ra.apartment_ID = @aprat_num 
+									AND agreement_end_date > GETDATE())
 
-						PRINT 'In apartment number: ' + CONVERT(varchar(4), @aprat_num)  + ' the new value of the rent is: ' + CONVERT(varchar, @new_value) 
+						PRINT 'In apartment number: ' + CONVERT(varchar(4), @aprat_num)  
+						+ ' the new value of the rent is: ' + CONVERT(varchar, @new_value) 
 						+ 'PLN, and the previous value was: ' + CONVERT(varchar, @previous_value) +'PLN.'
 
 					END
@@ -414,7 +421,8 @@ AS
 				ELSE
 					BEGIN
 
-						PRINT 'In apartment number: ' + CONVERT(varchar(4), @aprat_num)  + ' you cannot increase rental price because it has an area of: ' 
+						PRINT 'In apartment number: ' + CONVERT(varchar(4), @aprat_num)  
+						+ ' you cannot increase rental price because it has an area of: ' 
 						+ CONVERT(varchar(4), @apartment_area) + ' square meters.'
 
 					END
@@ -423,7 +431,8 @@ AS
 		ELSE
 			BEGIN
 
-				PRINT 'In apartment number: ' + CONVERT(varchar(4), @aprat_num)  + ' the rental price cannot be increased as it is not currently rented out'
+				PRINT 'In apartment number: ' + CONVERT(varchar(4), @aprat_num) 
+				+ ' the rental price cannot be increased as it is not currently rented out'
 
 			END
 
@@ -438,13 +447,13 @@ GO
 EXEC dbo.raise_the_rental_price 23
 GO
 
---Lokal, ktory jest wynajety, ale jego apartment_area jest mniejsza niz 45 m, wiec nie spelnia wymagan do podwyzki
+--Lokal, ktory jest wynajety, ale jego metraz jest mniejsza niz 45 m, wiec nie spelnia wymagan do podwyzki
 EXEC dbo.raise_the_rental_price 1
 GO
 
 
 -- 2. Procedura, ktora wyswietla tych pracownikow oraz ich stanowisko w danym oddziale, ktorzy zarabiaja pensje 
---    rowna minimalnej (wartosc min_salary w tabeli stanowiska)
+--    rowna minimalnej (wartosc min_salary w tabeli jobs)
 
 IF EXISTS(SELECT 1 FROM sys.objects WHERE name = 'show_employees')
 DROP PROCEDURE show_employees
@@ -454,7 +463,7 @@ CREATE PROCEDURE show_employees (@depart_id int = 30)
 AS
 	BEGIN
 	
-		SELECT	CONCAT(LEFT(e.first_name, 1), '. ', e.last_name) AS [employee],
+		SELECT	CONCAT(	LEFT(e.first_name, 1), '. ', e.last_name) AS [employee],
 				j.name AS [job title]
 		FROM employees e, departments d, jobs j
 		WHERE e.department_ID = d.department_ID
@@ -481,9 +490,9 @@ AS
 	BEGIN
 	
 		SELECT	CASE
-					WHEN DATEDIFF(YEAR, e.hire_date, GETDATE()) >= 10 THEN 'The employee is entitled to 26 days of vacation'
-					WHEN DATEDIFF(YEAR, e.hire_date, GETDATE()) < 10 THEN 'The employee is entitled to 20 days of vacation'
-				END AS Information
+				WHEN DATEDIFF(YEAR, e.hire_date, GETDATE()) >= 10 THEN 'The employee is entitled to 26 days of vacation'
+				WHEN DATEDIFF(YEAR, e.hire_date, GETDATE()) < 10 THEN 'The employee is entitled to 20 days of vacation'
+			END AS Information
 		FROM employees e
 		WHERE e.employee_ID = @empl_id
 
@@ -499,18 +508,18 @@ EXEC dbo.length_of_vacation 6
 GO
 
 
--- 4. Procedura, ktora wynajmuje ap. Sprawdza czy osoba, ktora chce go wynajac nie sfalszowala dowodu (funkcja check_correctness_of_identity_card) 
+-- 4. Procedura, ktora wynajmuje lokal. Sprawdza czy osoba, ktora chce go wynajac nie sfalszowala dowodu (funkcja check_correctness_of_identity_card) 
 --    oraz sprawdza czy mieszkanie jest obecnie wynajete (funkcja check_availability)
 
 IF EXISTS(SELECT 1 FROM sys.objects WHERE name = 'rent_an_apartment')
 DROP PROCEDURE rent_an_apartment
 GO
 
-CREATE PROCEDURE rent_an_apartment (@aprat_num int,
-									@people_renting_apart char(4),
-									@end date,
-									@rent_price money,
-									@how_many_people int)					 
+CREATE PROCEDURE rent_an_apartment (	@aprat_num int,
+					@people_renting_apart char(4),
+					@end date,
+					@rent_price money,
+					@how_many_people int)					 
 AS
 	BEGIN
 		
@@ -560,7 +569,7 @@ AS
 	END
 GO
 
---Wynajety obecnie ap
+--Wynajety obecnie lokal
 EXEC dbo.rent_an_apartment 1, 'KN01', '2022/12/12', 1200, 1
 GO
 
@@ -604,17 +613,16 @@ AS
 BEGIN
 
 	DECLARE @emp_id int,
-			@hire date,
-			@depart_id int,
-			@job_id char(3)
+		@hire date,
+		@depart_id int,
+		@job_id char(3)
 
 	SET @emp_id = (SELECT employee_ID FROM deleted)
 	SET @hire = (SELECT hire_date FROM deleted)
 	SET @depart_id = (SELECT department_ID FROM deleted)
 	SET @job_id = (SELECT job_ID FROM deleted)
 
-    INSERT INTO rental_office..employee_archive
-	VALUES (@emp_id, @hire, GETDATE(), @depart_id, @job_id)
+    	INSERT INTO rental_office..employee_archive VALUES (@emp_id, @hire, GETDATE(), @depart_id, @job_id)
 
 
 END;
@@ -623,11 +631,11 @@ GO
 -- Sprawdzenie poprawnosci dzialania wyzwalacza
 -- Usuniecie pracownika o ID = 24
 DELETE FROM employees
-WHERE employee_ID = 20
+WHERE employee_ID = 24
 
 -- Proba wyswietlenia, z tabeli employees, pracownika o ID = 24
 SELECT * FROM employees
-WHERE employee_ID = 20
+WHERE employee_ID = 24
 GO
 
 -- Wyswietlenie danych z tabeli employee_archive (posegregowanych od najnowszej daty zakonczenia pracy)
@@ -649,11 +657,11 @@ INSTEAD OF UPDATE
 AS
 BEGIN
 	DECLARE @current_date date,
-			@new_date date
+		@new_date date
 
 	SET @current_date = (	SELECT ra.agreement_end_date 
-							FROM rental_agreement ra, inserted i
-							WHERE ra.rental_agreement_ID = i.rental_agreement_ID)
+				FROM rental_agreement ra, inserted i
+				WHERE ra.rental_agreement_ID = i.rental_agreement_ID)
 	SET @new_date = (SELECT inserted.agreement_end_date FROM inserted)
 
 	IF(DATEADD(month, 3, GETDATE()) > @current_date)
@@ -707,7 +715,7 @@ SELECT rental_agreement_ID, agreement_end_date FROM rental_agreement where renta
 
 
 
--- 3. Wyzwalacz ktory po dodaniu pracownika sprawdza czy jego salary nie jest zbyt niska, jesli tak zwieksza ja do minimum
+-- 3. Wyzwalacz ktory po dodaniu pracownika sprawdza czy jego pensja nie jest zbyt niska, jesli tak zwieksza ja do minimum
 
 IF EXISTS (SELECT * FROM sys.objects WHERE [name] = N'add_employee' AND [type] = 'TR')
 DROP TRIGGER dbo.add_employee;
@@ -719,11 +727,11 @@ AFTER INSERT
 AS
 BEGIN
 	DECLARE @min_salary int,
-			@inserted_salary int
+		@inserted_salary int
 
 	SET @min_salary = (	SELECT j.min_salary 
-						FROM jobs j, inserted i
-						WHERE j.job_ID=i.job_ID)
+				FROM jobs j, inserted i
+				WHERE j.job_ID=i.job_ID)
 	SET @inserted_salary = (SELECT salary FROM inserted)
 	
 	IF(@inserted_salary < @min_salary)
